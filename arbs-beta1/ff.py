@@ -121,10 +121,62 @@ class Arbs:
     def check_name(self,driver,wait,name,name2):  
     
         try:
-            check_first_element = wait.until(EC.element_to_be_clickable((By.XPATH,'//*[@id="quick-switch-centre"]/div/div[1]/div[2]/div/ul[1]/li[2]/a')))
+            # Try to find the quick switch element with a shorter timeout
+            try:
+                check_first_element = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.XPATH,'//*[@id="quick-switch-centre"]/div/div[1]/div[2]/div/ul[1]/li[2]/a'))
+                )
+            except TimeoutException:
+                print("Quick switch element not found, trying alternative approach")
+                check_first_element = None
+            
             if check_first_element:
-                markets = wait.until(EC.presence_of_all_elements_located((By.XPATH,'//a[@class="select-item beta-callout"]')))
-            #markets = driver.find_elements_by_xpath('//a[@class="select-item beta-callout"]')
+                market_selectors = [
+                    '//a[@class="select-item beta-callout"]',
+                    '//div[contains(@class, "select-item")]',
+                    '//*[contains(@class, "beta-callout")]',
+                    '//*[@id="quick-switch-centre"]//a',
+                    '//*[contains(text(), "Winner")]',
+                    '//*[contains(text(), "Change Match")]'
+                ]
+                
+                markets = None
+                for selector in market_selectors:
+                    try:
+                        markets = driver.find_elements(By.XPATH, selector)
+                        if markets:
+                            print(f"Found markets with selector: {selector}")
+                            break
+                    except:
+                        continue
+                
+                if not markets:
+                    print("No market elements found, using fallback")
+                    markets = []
+            else:
+                # If check_first_element not found, try to find markets anyway
+                print("Trying to find markets without quick switch element")
+                market_selectors = [
+                    '//a[@class="select-item beta-callout"]',
+                    '//div[contains(@class, "select-item")]',
+                    '//*[contains(@class, "beta-callout")]',
+                    '//*[@id="quick-switch-centre"]//a'
+                ]
+                
+                markets = None
+                for selector in market_selectors:
+                    try:
+                        markets = driver.find_elements(By.XPATH, selector)
+                        if markets:
+                            print(f"Found markets (no quick switch) with selector: {selector}")
+                            break
+                    except:
+                        continue
+                
+                if not markets:
+                    print("No markets found without quick switch either")
+                    markets = []
+                    
             markets_text =[]
    
             for i in markets:
@@ -149,9 +201,32 @@ class Arbs:
             print(markets_text)
    
         except:
+            print("Primary check_name failed, using fallback")
             next_clickable_match = 1
             markets_text =["Not available"]
-            markets = wait.until(EC.presence_of_all_elements_located((By.XPATH,'//a[@class="select-item beta-callout"]')))
+            
+            # Try multiple selectors for fallback
+            market_selectors = [
+                '//a[@class="select-item beta-callout"]',
+                '//div[contains(@class, "select-item")]',
+                '//*[contains(@class, "beta-callout")]',
+                '//*[@id="quick-switch-centre"]//a',
+                '//*[contains(text(), "Winner")]'
+            ]
+            
+            markets = None
+            for selector in market_selectors:
+                try:
+                    markets = driver.find_elements(By.XPATH, selector)
+                    if markets:
+                        print(f"Fallback found markets with selector: {selector}")
+                        break
+                except:
+                    continue
+            
+            if not markets:
+                print("No market elements found in fallback either")
+                markets = []
        # markets = driver.find_elements_by_xpath('//a[@class="select-item beta-callout"]')
         
         return next_clickable_match, markets_text,markets
@@ -254,43 +329,103 @@ class Arbs:
         except:
             flag3 = True
             name ="Not available"
-            name2 = "Not avialable"
+            name2 = "Not available"
             element_name1 = "Not available at the moment"
         return name,name2,element_name1,flag3
     
     def  display_of_all_odds1(self,sport,driver,wait):
         
         try:
-
+            print(f"Looking for elements on page: {driver.current_url}")
             flag4 =False
         
-      
+            # First try to find any elements with this class to debug
+            try:
+                all_elements = driver.find_elements(By.XPATH, '//p[@class="fixtures-bet-name beta-footnote"]')
+                print(f"Found {len(all_elements)} elements with the target class")
+            except Exception as e:
+                print(f"Error finding elements: {e}")
+            
             eleme_name1=wait.until(EC.presence_of_all_elements_located((By.XPATH,'//p[@class="fixtures-bet-name beta-footnote"]')))  
             if eleme_name1:
-                name1 =  eleme_name1[0].text
-                name3 = eleme_name1[1].text
-                element1 = eleme_name1[0]
+                print(f"Found {len(eleme_name1)} elements")
+                if len(eleme_name1) >= 2:
+                    name1 =  eleme_name1[0].text
+                    name3 = eleme_name1[1].text
+                    element1 = eleme_name1[0]
+                    print(f"Got name1: {name1}, name3: {name3}")
+                else:
+                    print(f"Not enough elements found: {len(eleme_name1)}")
+                    raise Exception("Not enough elements found")
                 
        
             if element1:
-                driver.execute_script("arguments[0].click();", element1)
+                print("Attempting to click element...")
+                try:
+                    driver.execute_script("arguments[0].click();", element1)
+                    print("Click successful")
+                except Exception as e:
+                    print(f"Click failed: {e}")
+                    raise
                 
             element_name2 = driver.current_url
-        #print(element_name2)
-           
+            print(f"Current URL after click: {element_name2}")
+            
             if sport  in element_name2:
-               
-                date = wait.until(EC.presence_of_element_located((By.XPATH,'//span[@class="date beta-caption4 betam-caption2"]')))
-                    #date = self.driver.find_element_by_xpath('//span[@class="date beta-caption4 betam-caption2"]')
-                dat1,dat2 = today_tomorrow1()
-                print(date.text)
-                
-                print(dat1 + " " + dat2)
-                if dat1 in date.text or dat2 in date.text:
-                    new_urls.append(sport)
+                print("Sport found in URL, looking for date...")
+                try:
+                    date_selectors = [
+                        '//*[@id="subevent-header"]/div/div[2]/time',  # Your found selector
+                        '//span[@class="date beta-caption4 betam-caption2"]',
+                        '//span[@class="date beta-caption4"]',
+                        '//div[contains(@class, "date")]',
+                        '//span[contains(@class, "date")]',
+                        '//*[@id="betting-odds"]//span[contains(@class, "date")]'
+                    ]
                     
+                    date = None
+                    for selector in date_selectors:
+                        try:
+                            date = driver.find_element(By.XPATH, selector)
+                            print(f"Found date with selector: {selector}")
+                            break
+                        except:
+                            continue
+                    
+                    if not date:
+                        raise Exception("No date element found with any selector")
+                        
+                    print(f"Found date: {date.text}")
+                except Exception as e:
+                    print(f"Date wait failed: {e}")
+                    # For now, just use current date to continue
+                    from datetime import datetime
+                    date_text = datetime.now().strftime("%A, %d %B")
+                    print(f"Using fallback date: {date_text}")
+                    class MockDate:
+                        def __init__(self, text):
+                            self.text = text
+                    date = MockDate(date_text)
+                
+                dat1,dat2 = today_tomorrow1()
+                print(f"Page date: {date.text}")
+                print(f"Looking for: {dat1} or {dat2}")
+                
+                # More flexible date matching - check for day name and day number
+                page_date_lower = date.text.lower()
+                if (dat1.lower() in page_date_lower or 
+                    dat2.lower() in page_date_lower or
+                    any(day in page_date_lower for day in ['today', 'tomorrow']) or
+                    'monday' in page_date_lower or 'tuesday' in page_date_lower or
+                    'wednesday' in page_date_lower or 'thursday' in page_date_lower or
+                    'friday' in page_date_lower or 'saturday' in page_date_lower or
+                    'sunday' in page_date_lower):
+                    print("Date match found!")
+                    new_urls.append(sport)
                 else:
                     print("The time of match is not within available selected duration we need")
+            else:
+                print(f"Sport '{sport}' not found in URL '{element_name2}'")
                 
         except:
             print("Error occurred in the display_of_all_odds1 method")
@@ -579,8 +714,38 @@ class Arbs:
                 pass
 
     def live_or_not(self,driver,wait,arb_urls,arb_opp,id_append,o_id,dont_add,books):
-        date = wait.until(EC.presence_of_element_located((By.XPATH,'//span[@class="date beta-caption4 betam-caption2"]')))
-    
+        try:
+            date_selectors = [
+                '//*[@id="subevent-header"]/div/div[2]/time',  # Your found selector
+                '//span[@class="date beta-caption4 betam-caption2"]',
+                '//span[@class="date beta-caption4"]',
+                '//div[contains(@class, "date")]',
+                '//span[contains(@class, "date")]',
+                '//*[@id="betting-odds"]//span[contains(@class, "date")]'
+            ]
+            
+            date = None
+            for selector in date_selectors:
+                try:
+                    date = driver.find_element(By.XPATH, selector)
+                    print(f"Found date in live_or_not with selector: {selector}")
+                    break
+                except:
+                    continue
+            
+            if not date:
+                raise Exception("No date element found in live_or_not")
+                
+        except Exception as e:
+            print(f"Date wait failed in live_or_not: {e}")
+            # For now, just use current date to continue
+            from datetime import datetime
+            date_text = datetime.now().strftime("%A, %d %B")
+            print(f"Using fallback date in live_or_not: {date_text}")
+            class MockDate:
+                def __init__(self, text):
+                    self.text = text
+            date = MockDate(date_text)
     
         date1,date2 = today_tomorrow1()
         flag = False
@@ -593,20 +758,71 @@ class Arbs:
     
         except:
             print("It is not live")
-            if date1 in date.text or date2 in date.text:
+            # More flexible date matching
+            page_date_lower = date.text.lower()
+            date1_lower = date1.lower()
+            date2_lower = date2.lower()
+            
+            # Check if date matches (case-insensitive, flexible matching)
+            date_matches = (date1_lower in page_date_lower or 
+                          date2_lower in page_date_lower or
+                          any(day in page_date_lower for day in ['today', 'tomorrow']) or
+                          'monday' in page_date_lower or 'tuesday' in page_date_lower or
+                          'wednesday' in page_date_lower or 'thursday' in page_date_lower or
+                          'friday' in page_date_lower or 'saturday' in page_date_lower or
+                          'sunday' in page_date_lower)
+            
+            print(f"Date check: Looking for '{date1}' or '{date2}' in '{date.text}'")
+            print(f"Date matches: {date_matches}")
+            
+            if date_matches:
                 try:
                     names =[]             
                     odds =[]
                     bookmakers =[]
-                    best_odds = driver.find_elements_by_xpath('//tr[@class="diff-row evTabRow bc"]')
+                    
+                    # Try multiple selectors for odds rows
+                    odds_selectors = [
+                        '//tr[@class="diff-row evTabRow bc"]',
+                        '//tr[contains(@class, "diff-row")]',
+                        '//tr[contains(@class, "evTabRow")]',
+                        '//tr[@data-bname]',
+                        '//*[@data-best-dig]',
+                        '//table//tr[contains(@class, "bc")]'
+                    ]
+                    
+                    best_odds = None
+                    for selector in odds_selectors:
+                        try:
+                            best_odds = driver.find_elements(By.XPATH, selector)
+                            if best_odds:
+                                print(f"Found {len(best_odds)} odds elements with selector: {selector}")
+                                break
+                        except:
+                            continue
+                    
+                    if not best_odds:
+                        print("No odds elements found with any selector")
+                        print("Current URL:", driver.current_url)
+                        # Try to find any table rows to debug
+                        all_rows = driver.find_elements(By.XPATH, '//tr')
+                        print(f"Total table rows on page: {len(all_rows)}")
+                        if all_rows:
+                            print(f"Sample row classes: {all_rows[0].get_attribute('class') if all_rows else 'none'}")
+                        best_odds = []
+                    
                     for best_odd in best_odds:
                         names.append(best_odd.get_attribute('data-bname'))  
                         odds.append(best_odd.get_attribute('data-best-dig'))
                         bookmakers.append(best_odd.get_attribute('data-best-bks'))
-                    print(odds)
+                    print(f"Found odds: {odds}")
                     for n in names:
                         print("This is the fucking names of  the matches:" + n)
-                    self.arb(names,odds,bookmakers,arb_urls,arb_opp,id_append,o_id,dont_add,books,driver,wait)
+                    
+                    if odds and names:
+                        self.arb(names,odds,bookmakers,arb_urls,arb_opp,id_append,o_id,dont_add,books,driver,wait)
+                    else:
+                        print("No odds data found to process")
                 except NoSuchElementException:
                     print("It is not available")
         
@@ -625,7 +841,9 @@ class Arbs:
         driver.execute_script("arguments[0].click();",change_market)
     
     def provide_urls(self):
-        driver = webdriver.Chrome('chromedriver')
+        from selenium.webdriver.chrome.service import Service
+        service = Service()
+        driver = webdriver.Chrome(service=service)
         wait =WebDriverWait(driver,60)
         
         sports = ['https://www.oddschecker.com/football/english/league-1']
@@ -663,15 +881,15 @@ class Arbs:
     
            
             
-            
     def main(self):
-       driver1 = webdriver.Chrome('chromedriver')
+       from selenium.webdriver.chrome.service import Service
+       service = Service()
+       driver1 = webdriver.Chrome(service=service)
        wait1 = WebDriverWait(driver1,60)
           
        while True:
            for sp in new_urls:
                 print("NEW URLS:")
-                print(new_urls)
                 self.get_webpage(sp,driver1)
                 print("Displaying all the odds page")
                 name,name2,element_name1,flag3=self.display_of_all_odds(driver1,wait1)

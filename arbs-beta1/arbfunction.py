@@ -5,14 +5,14 @@ Created on Sun Dec 22 09:00:51 2019
 @author: Duke Young
 """
 
-import mysql.connector
-mydb = mysql.connector.connect(
-        host="localhost",
-        user = "root",
-        database = "test_db"
-        )
+# import mysql.connector
+# mydb = mysql.connector.connect(
+#         host="localhost",
+#         user = "root",
+#         database = "test_db"
+#         )
 
-mycursor = mydb.cursor()
+# mycursor = mydb.cursor()
 
 #li={'id': 4, 'names': 'Sheffield Wednesday v West Brom - Total Goals Over/Under-Over 0.5/ Under 0.5', 'Team1': '1.07', 'Bookmaker1': 'Bet365,Betfair,Coral,Betfair Sportsbook,GN,William Hill', 'Team2': '10.5', 'Bookmaker2': 'Betfair,888sport,Unibet', 'url': 'https://www.oddschecker.com/football/english/championship/sheffield-wednesday-v-west-brom/total-goals-over-under', 'profi': 17.01824655095683, 'n1': 'Over 0.5', 'n2': 'Under 0.5', 'lilen': 2,'Event':'soccer','Market':'sports','Time':'5:50'}
 
@@ -24,9 +24,8 @@ def arb_opp(li):
         sqlformula = "INSERT INTO arbfinals(Event,Market,Time,Team1,Odd1,Team2,Odd2,DrawOdd3,Odd3,Profit,Market_type,Id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
         arb_opportunity1 = (li['Event'],li['Market'],li['Time'],li['Team1'],li['Odd1'],li['Team2'],li['Odd2'],li['DrawOdd3'],li['Odd3'],li['Profit'],li['Market_type'],li['Id'])
 
-        #print(li)
-        mycursor.execute(sqlformula,arb_opportunity1)
-        mydb.commit()
+        # print(f"Would insert: {arb_opportunity1}")
+        print(f"Arb opportunity (3-way): {li['Event']} - Profit: {li['Profit']}")
         
          
     if li['lilen'] == 2:
@@ -34,16 +33,15 @@ def arb_opp(li):
         sqlformula = "INSERT INTO arbfinals(Event,Market,Time,Team1,Odd1,Team2,Odd2,Profit,Market_type,Id) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
         arb_opportunity1 = (li['Event'],li['Market'],li['Time'],li['Team1'],li['Odd1'],li['Team2'],li['Odd2'],li['Profit'],li['Market_type'],li['Id'])
             
-        mycursor.execute(sqlformula,arb_opportunity1)
-        mydb.commit()
-        print("Inserted successfully")
-        #print(li)
+        # print(f"Would insert: {arb_opportunity1}")
+        print(f"Arb opportunity (2-way): {li['Event']} - Profit: {li['Profit']}")
             
             
 def delete_arb(ing):
-    sql = f"DELETE FROM arb7 WHERE id ={ing}"
-    mycursor.execute(sql)
-    mydb.commit()
+    print(f"Would delete arb with id: {ing}")
+    # sql = f"DELETE FROM arb7 WHERE id ={ing}"
+    # mycursor.execute(sql)
+    # mydb.commit()
 
 
 #arb_opp(li)
